@@ -1,0 +1,93 @@
+---
+title: "HMM testify"
+output: html_document
+date: "2025-05-31"
+created:"2025-05-31"
+revised:"2025-05-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# with HMM
+```{r}
+## ---------------------------------------------------------------
+## 0.  Packages
+## ---------------------------------------------------------------
+library(HMM)      # reference implementation
+source("myHMM.R")    # <— your package
+library(clue)     # solve_LSAP() for label alignment
+library(testthat)
+
+## ---------------------------------------------------------------
+## 1.  True model (K states, M symbols)
+## ---------------------------------------------------------------
+set.seed(42)
+K <- 3                       # hidden states
+M <- 4                       # discrete symbols
+
+pi.true <- runif(K);         pi.true <- pi.true / sum(pi.true)
+A.true  <- matrix(runif(K*K), nrow = K); A.true <- A.true / rowSums(A.true)
+B.true  <- matrix(runif(K*M), nrow = K); B.true <- B.true / rowSums(B.true)
+
+hmm.true <- initHMM(
+  States        = paste0("S", 1:K),
+  Symbols       = paste0("V", 1:M),
+  startProbs    = pi.true,
+  transProbs    = A.true,
+  emissionProbs = B.true
+)
+
+## ---------------------------------------------------------------
+## 2.  Simulate **one** observation sequence
+## ---------------------------------------------------------------
+Tlen <- 300
+obs  <- simHMM(hmm.true, Tlen)$observation   # character vector "V2", "V1", ...
+
+## ---------------------------------------------------------------
+## 3.  Fit with CRAN HMM (random start)
+## ---------------------------------------------------------------
+hmm.init <- initHMM(hmm.true$States, hmm.true$Symbols)
+fit.HMM  <- baumWelch(hmm.init, obs,
+                      maxIterations = 200, delta = 1e-6)
+
+## ---------------------------------------------------------------
+## 4.  Fit with *your* package (vector input)
+## ---------------------------------------------------------------
+fit.my   <- myBW(hmm.init, obs |> list(),
+                 maxIterations = 200, delta = 1e-6)
+
+## ---------------------------------------------------------------
+## 5.  Align state labels  (HMM is only identifiable up to permutation)
+## ---------------------------------------------------------------
+## Cost = L2 distance between emission rows
+cost <- proxy::dist(fit.HMM$hmm$emissionProbs,
+                    fit.my$hmm$emissionProbs, method = "Euclidean")
+perm <- solve_LSAP(cost)          # Hungarian assignment
+
+permute_rows <- function(M, p) M[p, , drop = FALSE]
+A.my.aligned  <- permute_rows(fit.my$hmm$transProbs, perm)[ , perm]
+B.my.aligned  <- permute_rows(fit.my$hmm$emissionProbs,   perm)
+pi.my.aligned <- fit.my$hmm$startProbs[perm]
+
+## ---------------------------------------------------------------
+## 6.  Tests
+## ---------------------------------------------------------------
+tol.LL <- 1e-6   # likelihood tolerance
+tol.P  <- 1e-3   # parameter tolerance
+
+
+test_that("Transition matrix matches", {
+  expect_lt(norm(A.my.aligned - fit.HMM$hmm$transProbs, "F"), tol.P)
+})
+
+test_that("Emission matrix matches", {
+  expect_lt(norm(B.my.aligned - fit.HMM$hmm$emissionProbs, "F"), tol.P)
+})
+
+test_that("Initial distribution matches", {
+  expect_lt(sqrt(sum((pi.my.aligned - fit.HMM$hmm$startProbs)^2)), tol.P)
+})
+
+cat("\nAll single-sequence HMM tests passed ✔︎\n")
+```

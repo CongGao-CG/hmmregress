@@ -1,0 +1,216 @@
+---
+title: "HMM develop"
+output: html_document
+date: "2025-05-25"
+created:"2025-05-25"
+revised:"2025-05-26"
+revised:"2025-05-27"
+revised:"2025-05-28"
+revised:"2025-05-29"
+revised:"2025-05-30"
+revised:"2025-05-31"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# load packages
+```{r}
+source("myHMM.R")
+source("myHMMcont.R")
+source("myHMMcont_Reg.R")
+library(tidyverse)
+# library(HMM)
+```
+# single O discrete sequence and basic HMM
+```{r}
+# Initialize the HMM
+hmm <- myinitHMM(States = c("Rainy", "Sunny"),
+                 Symbols = c("walk", "shop", "clean"),
+                 startProbs = c(0.6, 0.4),
+                 transProbs = rbind(c(0.7, 0.3), 
+                                    c(0.4, 0.6)),
+                 emissionProbs = rbind(c(0.1, 0.4, 0.5), 
+                                       c(0.6, 0.3, 0.1)))
+
+
+# obs sequence
+single_obs <- c("walk", "shop", "clean", "walk", "shop", "shop", "clean", "walk") |> list()
+multip_obs <- list(c("walk", "shop", "clean", "walk", "shop", "shop", "clean", "walk"),
+                   c("shop", "shop", "clean", "walk", "walk", "shop", "clean", "walk"),
+                   c("walk", "shop", "clean", "walk", "clean", "walk", "shop", "shop"))
+
+
+mytrainedHMM <- myBW(hmm, single_obs, maxIterations = 44)
+
+
+sapply(single_obs, function(obs) {log_sum_exp(myforward(hmm, obs)[, 8])}) |> sum()
+# [1] -9.196606
+sapply(single_obs, function(obs) {log_sum_exp(myforward(mytrainedHMM$hmm, obs)[, 8])}) |> sum()
+# [1] -6.730117
+```
+# multiple discrete O sequences and basic HMM
+```{r}
+mytrainedHMM <- myBW(hmm, multip_obs, maxIterations = 172)
+
+
+sapply(multip_obs, function(obs) {log_sum_exp(myforward(hmm, obs)[, 8])}) |> sum()
+# [1] -27.47408
+sapply(multip_obs, function(obs) {log_sum_exp(myforward(mytrainedHMM$hmm, obs)[, 8])}) |> sum()
+# [1] -22.57193
+```
+# single continuous O sequence and basic HMM
+```{r}
+# Initialize the HMM
+hmmcont <- myinitHMMcont(States = c("Rainy", "Sunny"),
+                         startProbs = c(0.99, 0.01),
+                         transProbs = rbind(c(0.99, 0.01), c(0.99, 0.01)),
+                         emissionParams = list(Rainy = list(mean = 0.2, sd = 0.8), Sunny = list(mean = 1.2, sd = 0.07)))
+
+
+hmmcont_reg <- myinitHMMcont_Reg(States = c("Rainy", "Sunny"),
+                                 startCoefs = rbind(
+                                   c(0),
+                                   c(-4.59512)),
+                                 transCoefs = list(
+                                   Rainy = rbind(c(0), c(-4.59512)),
+                                   Sunny = rbind(c(0), c(-4.59512))),
+                                 emissionCoefs = rbind(
+                                   c(0.2),
+                                   c(0.8)),
+                                 sds = c(0.8, 0.07))
+
+
+single_obscont <- c(0.99, -1.88, -0.56, -0.72,1.02, 0.74, 0.44, -1.02) |> list()
+
+
+multip_obscont <- list(c(0.99, -1.88, -0.56, -0.72, 1.02, 0.74, 0.44, -1.02),
+                       c(0.39, -0.37, 0.74, -0.043, -0.28, 1.01, 0.09, 1.23),
+                       c(0.38,  0.11, -0.52, -0.44, 2.14, -0.94, 1.44, 0.48))
+
+
+mytrainedHMMcont <- myBWcont(hmmcont, single_obscont, maxIterations = 6)
+
+
+mytrainedHMMcont_Reg <- myBWcont_Reg(hmmcont_reg, single_obscont,
+                                     Xs_list = rbind(c(1)) |> list(),
+                                     Xt_list = rbind(c(1, 1, 1, 1, 1, 1, 1)) |> list(),
+                                     Xe_list = rbind(c(1, 1, 1, 1, 1, 1, 1, 1)) |> list(),
+                                     maxIterations = 4)
+
+
+sapply(single_obscont, function(obs) {log_sum_exp(myforwardcont(hmmcont, obs)[, 8])}) |> sum()
+# [1] -12.57856
+sapply(single_obscont, function(obs) {log_sum_exp(myforwardcont(mytrainedHMMcont$hmm, obs)[, 8])}) |> sum()
+# [1] -4.66745
+mapply(function(obs, Xs, Xt, Xe) myforwardcont_Reg(hmm = mytrainedHMMcont_Reg$hmm, observation = obs, Xs = Xs, Xt = Xt, Xe = Xe)[, 8] |> log_sum_exp(),
+       single_obscont,
+       rbind(c(1)) |> list(),
+       rbind(c(1, 1, 1, 1, 1, 1, 1)) |> list(),
+       rbind(c(1, 1, 1, 1, 1, 1, 1, 1)) |> list()) |> sum()
+# [1] -6.405988
+```
+# multiple continuous O sequences and basic HMM
+```{r}
+mytrainedHMMcont <- myBWcont(hmmcont, multip_obscont, maxIterations = 3)
+
+
+mytrainedHMMcont_Reg <- myBWcont_Reg(hmmcont_reg, multip_obscont,
+                                     Xs_list = rbind(c(1)) |> list() |> rep(3),
+                                     Xt_list = rbind(c(1, 1, 1, 1, 1, 1, 1)) |> list() |> rep(3),
+                                     Xe_list = rbind(c(1, 1, 1, 1, 1, 1, 1, 1)) |> list() |> rep(3),
+                                     maxIterations = 3)
+
+
+sapply(multip_obscont, function(obs) {log_sum_exp(myforwardcont(hmmcont, obs)[, 8])}) |> sum()
+# [1] -31.71168
+sapply(multip_obscont, function(obs) {log_sum_exp(myforwardcont(mytrainedHMMcont$hmm, obs)[, 8])}) |> sum()
+# [1] -25.71656
+mapply(function(obs, Xs, Xt, Xe) myforwardcont_Reg(hmm = mytrainedHMMcont_Reg$hmm, observation = obs, Xs = Xs, Xt = Xt, Xe = Xe)[, 8] |> log_sum_exp(),
+       single_obscont,
+       rbind(c(1)) |> list() |> rep(3),
+       rbind(c(1, 1, 1, 1, 1, 1, 1)) |> list() |> rep(3),
+       rbind(c(1, 1, 1, 1, 1, 1, 1, 1)) |> list() |> rep(3)) |> sum()
+# [1] -21.33596
+```
+# single O sequences for regression
+```{r}
+hmmcont_reg <- myinitHMMcont_Reg(States = c("A", "B", "C"),
+                                 startCoefs = rbind(
+                                   # c(0, 0),
+                                   c(0),
+                                   # c(0.2, -0.1),
+                                   c(0.2),
+                                   # c(-0.3, 0.4)),
+                                   c(-0.3)),
+                                 transCoefs = list(
+                                   A = rbind(c(0, 0), c(0.1, -0.1), c(-0.2, 0.3)),
+                                   B = rbind(c(0, 0), c(0.3, 0.2), c(-0.1, 0.1)),
+                                   C = rbind(c(0, 0), c(-0.2, 0.2), c(0.5, -0.3))),
+                                 emissionCoefs = rbind(
+                                   c(1, 2),
+                                   c(3, 4),
+                                   c(5, 6)),
+                                 sds = c(0.5, 1.0, 0.8))
+
+
+single_obscont <- c(0.99, -1.88, -0.56, -0.72,1.02, 0.74, 0.44, -1.02) |> list()
+
+
+multip_obscont <- list(c(0.99, -1.88, -0.56, -0.72, 1.02, 0.74, 0.44, -1.02),
+                       c(0.39, -0.37, 0.74, -0.043, -0.28, 1.01, 0.09, 1.23),
+                       c(0.38,  0.11, -0.52, -0.44, 2.14, -0.94, 1.44, 0.48))
+
+
+mapply(function(obs, Xs, Xt, Xe) myforwardcont_Reg(hmm = hmmcont_reg, observation = obs, Xs = Xs, Xt = Xt, Xe = Xe)[, 8] |> log_sum_exp(), 
+       single_obscont, 
+       # Xs_list = rbind(c(1), c(8)) |> list(),
+       rbind(c(1)) |> list(),
+       rbind(c(1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 7, 1, 2)) |> list(), 
+       rbind(c(1, 1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 9, 7, 1, 2)) |> list()) |> sum()
+# [1] -2087.188
+
+
+mytrainedHMMcont_Reg <- myBWcont_Reg(hmmcont_reg, single_obscont, 
+                                     # Xs_list = rbind(c(1), c(8)) |> list(),
+                                     Xs_list = rbind(c(1)) |> list(),
+                                     Xt_list = rbind(c(1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 7, 1, 2)) |> list(), 
+                                     Xe_list = rbind(c(1, 1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 9, 7, 1, 2)) |> list(),
+                                     maxIterations = 2)
+
+
+mapply(function(obs, Xs, Xt, Xe) myforwardcont_Reg(hmm = mytrainedHMMcont_Reg$hmm, observation = obs, Xs = Xs, Xt = Xt, Xe = Xe)[, 8] |> log_sum_exp(), 
+       single_obscont, 
+       # Xs_list = rbind(c(1), c(8)) |> list(),
+       rbind(c(1)) |> list(),
+       rbind(c(1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 7, 1, 2)) |> list(), 
+       rbind(c(1, 1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 9, 7, 1, 2)) |> list()) |> sum()
+# [1] 6.755038
+```
+# multiple O sequences for regression
+```{r}
+mytrainedHMMcont_Reg <- myBWcont_Reg(hmmcont_reg, multip_obscont, 
+                                     # Xs_list = rbind(c(1), c(8)) |> list(),
+                                     Xs_list = rbind(c(1)) |> list() |> rep(3),
+                                     Xt_list = rbind(c(1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 7, 1, 2)) |> list() |> rep(3), 
+                                     Xe_list = rbind(c(1, 1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 9, 7, 1, 2)) |> list() |> rep(3),
+                                     maxIterations = 2)
+
+
+mapply(function(obs, Xs, Xt, Xe) myforwardcont_Reg(hmm = hmmcont_reg, observation = obs, Xs = Xs, Xt = Xt, Xe = Xe)[, 8] |> log_sum_exp(), 
+       multip_obscont, 
+       # Xs_list = rbind(c(1), c(8)) |> list(),
+       rbind(c(1)) |> list() |> rep(3),
+       rbind(c(1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 7, 1, 2)) |> list() |> rep(3), 
+       rbind(c(1, 1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 9, 7, 1, 2)) |> list() |> rep(3)) |> sum()
+# [1] -6103.463
+
+
+mapply(function(obs, Xs, Xt, Xe) myforwardcont_Reg(hmm = mytrainedHMMcont_Reg$hmm, observation = obs, Xs = Xs, Xt = Xt, Xe = Xe)[, 8] |> log_sum_exp(), 
+       multip_obscont, 
+       # Xs_list = rbind(c(1), c(8)) |> list(),
+       rbind(c(1)) |> list() |> rep(3),
+       rbind(c(1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 7, 1, 2)) |> list() |> rep(3), 
+       rbind(c(1, 1, 1, 1, 1, 1, 1, 1), c(3, 4, 5, 6, 9, 7, 1, 2)) |> list() |> rep(3)) |> sum()
+# [1] -36.76891
+```
