@@ -75,18 +75,13 @@ def min_error_up_to_permutation(t_start, t_trans, t_emis,
 if __name__ == '__main__':
     rng = np.random.default_rng(0)
     OBS_LIST = sample_hmm(TRUE_HMM, n_seq=400, length=200, rng=rng)
-    print(OBS_LIST[0][0:5])
     BEST_r   = np.nan
     BEST_LL  = -np.inf
     BEST_HMM = None
     RESTARTS = 5
     for r in range(RESTARTS):
         init = random_hmm(2, 2, rng=np.random.default_rng(r + 123))
-        print(r)
-        print('\n')
-        print(init)
         trained = BW(init, OBS_LIST, maxIterations=100)['hmm']
-        print(trained)
         ll = sum(
             log_sum_exp(forward(trained, obs)[:, -1])
             for obs in OBS_LIST
@@ -94,7 +89,6 @@ if __name__ == '__main__':
         if ll > BEST_LL:
             BEST_r, BEST_LL, BEST_HMM = r, ll, trained
     
-    print(BEST_r)
     print(f'Best log-likelihood over {RESTARTS} restarts: {BEST_LL:,.1f}')
 
     max_err = min_error_up_to_permutation(
@@ -112,10 +106,10 @@ if __name__ == '__main__':
         print('FAIL – maximum error exceeds tolerance.')
     print('\nTrue vs Best Start Probs:')
     print(TRUE_HMM['start_probs'])
-    print(BEST_HMM['start_probs'])
+    print(np.round(BEST_HMM['start_probs'],2))
     print('\nTrue vs Best Transition Probs:')
     print(TRUE_HMM['trans_probs'])
-    print(BEST_HMM['trans_probs'])
+    print(np.round(BEST_HMM['trans_probs'],2))
     print('\nTrue vs Best Emission Probs:')
     print(TRUE_HMM['emission_probs'])
-    print(BEST_HMM['emission_probs'])
+    print(np.round(BEST_HMM['emission_probs'],2))
