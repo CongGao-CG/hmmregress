@@ -1,10 +1,12 @@
 import numpy as np
 import statsmodels.api as sm
+from scipy.special import expit
 from forwardcont_Reg import forwardcont_Reg
 from backwardcont_Reg import backwardcont_Reg
 from softmax import softmax
 from log_norm_pdf import log_norm_pdf
 from log_sum_exp import log_sum_exp
+from stable_exp_sum import stable_exp_sum
 
 
 def BWRcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list):
@@ -47,16 +49,15 @@ def BWRcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list):
             gamma_vals = f[i, :] + b[i, :] - likelihood
             loggamma_list[st].extend(gamma_vals.tolist())
     for idx, st in enumerate(States[1:], start=1):
-        y = logstart_Y[:, idx] - logstart_Y[:, 0]
-        weights = np.exp(logstart_Y).sum(axis=1)
-        model = sm.WLS(y, Xs_all, weights=weights).fit()
+        y = expit(logstart_Y[:, idx] - logstart_Y[:, 0])
+        weights = stable_exp_sum(logstart_Y[:, idx], logstart_Y[:, 0])
+        model = sm.GLM(y, Xs_all, freq_weights=weights, family=sm.families.Binomial()).fit()
         hmm['startCoefs'][idx, :] = model.params
     for st in States:
         for j, ns in enumerate(States[1:], start=1):
-            y = np.array(logxi_list[st][ns]) - np.array(logxi_list[st][States[0]])
-            weights = sum(np.exp(logxi_list[st][key]) for key in logxi_list)
-            model = sm.WLS(y, Xt_all, weights=weights).fit()
-
+            y = expit(np.array(logxi_list[st][ns]) - np.array(logxi_list[st][States[0]]))
+            weights = stable_exp_sum(np.array(logxi_list[st][States[0]]), np.array(logxi_list[st][ns]))
+            model = sm.GLM(y, Xt_all, freq_weights=weights, family=sm.families.Binomial()).fit()
             hmm['transCoefs'][st][j, :] = model.params
     for st in States:
         weights = np.exp(np.array(loggamma_list[st]) - np.max(loggamma_list[st]))

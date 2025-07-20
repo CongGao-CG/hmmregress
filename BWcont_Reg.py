@@ -7,7 +7,8 @@ def BWcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list, maxIterations=100, delt
     tempHmm = copy.deepcopy(hmm)
     diff = []
     for _ in range(maxIterations):
-        bw = BWRcont_Reg(tempHmm, obs_list, Xs_list, Xt_list, Xe_list)
+        working_hmm = copy.deepcopy(tempHmm)
+        bw = BWRcont_Reg(working_hmm, obs_list, Xs_list, Xt_list, Xe_list)
         TC = bw['transCoefs']
         EP = bw['emissionParams']
         SC = bw['startCoefs']
@@ -24,6 +25,7 @@ def BWcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list, maxIterations=100, delt
             np.sqrt(np.sum((tempHmm['startCoefs'] - SC)**2))
         )
         diff.append(d)
+        print(d)
         tempHmm['transCoefs'] = TC
         tempHmm['emissionParams'] = EP
         tempHmm['startCoefs'] = SC

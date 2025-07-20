@@ -95,29 +95,18 @@ OBS_LIST, XS_LIST, XT_LIST, XE_LIST = make_dataset(TRUE_HMM)
 
 # ─── 3.  Helper – evaluate up to state permutation ──────────────────────
 def permute_params(hmm_dict, perm):
-    """Return start, transition, emission-mean and sd arrays permuted."""
-    # Permute rows of startCoefs
     startC = hmm_dict["startCoefs"][perm, :]
-    
-    # For transitions: permute which state's matrix we use AND rows/cols within
     transC = {}
     for i in range(len(perm)):
-        # Get the transition matrix for permuted state perm[i]
-        # Then permute its rows (destinations)
         transC[STATES[i]] = hmm_dict["transCoefs"][STATES[perm[i]]][perm, :]
-    
-    # Emission coefficients: reorder by permuted states
     emisC = np.array([
         hmm_dict["emissionParams"][STATES[perm[i]]]["coefs"] 
         for i in range(len(perm))
     ])
-    
-    # Standard deviations: reorder by permuted states  
     sds = np.array([
         hmm_dict["emissionParams"][STATES[perm[i]]]["sd"] 
         for i in range(len(perm))
     ])
-    
     return startC, transC, emisC, sds
 
 
@@ -127,10 +116,14 @@ def max_abs_err(a, b):          # helper
 
 def min_error_permuted(est_hmm):
     best = np.inf
+    t_s = TRUE_startCoefs
+    t_t = TRUE_transCoefs
+    t_e = TRUE_emissionCoefs
+    t_d = TRUE_sds
     for perm in itertools.permutations(range(len(STATES))):
-        t_s, t_t, t_e, t_d = permute_params(TRUE_HMM, perm)
         e_s, e_t, e_e, e_d = permute_params(est_hmm, perm)
-
+        e_s = e_s - e_s[0,:]
+        e_t = {key: arr - arr[0] for key, arr in e_t.items()}
         err = max(
             max_abs_err(t_s, e_s),
             max_abs_err(np.vstack(list(t_t.values())),
@@ -146,15 +139,15 @@ def random_hmm(seed):
     rng = np.random.default_rng(seed)
 
     startC = np.zeros_like(TRUE_startCoefs)
-    startC[1:] = rng.normal(scale=2, size=startC[1:].shape)
+    startC[1:] = rng.normal(scale=3, size=startC[1:].shape)
 
     transC = {}
     for st, tpl in TRUE_transCoefs.items():
         mat = np.zeros_like(tpl)
-        mat[1:] = rng.normal(scale=2, size=mat[1:].shape)   # keep row-0 = 0
+        mat[1:] = rng.normal(scale=3, size=mat[1:].shape)   # keep row-0 = 0
         transC[st] = mat
 
-    emisC = rng.normal(scale=2, size=TRUE_emissionCoefs.shape)
+    emisC = rng.normal(scale=3, size=TRUE_emissionCoefs.shape)
     sds   = rng.uniform(0.5, 2.0, size=TRUE_sds.shape)
 
     return initHMMcont_Reg(STATES, startC, transC, emisC, sds)
@@ -164,9 +157,9 @@ RESTARTS = 1
 
 for r in range(RESTARTS):
     init = random_hmm(100 + r)
-    init = TRUE_HMM
+    # init = TRUE_HMM
     trained = BWcont_Reg(init, OBS_LIST, XS_LIST, XT_LIST, XE_LIST,
-                         maxIterations=10, delta=1e-6)["hmm"]
+                         maxIterations=100, delta=1e-6)["hmm"]
     ll = sum(
         log_sum_exp(
             forwardcont_Reg(trained, o, xs, xt, xe)[:, -1]
