@@ -1,12 +1,11 @@
 import numpy as np
 import statsmodels.api as sm
-from scipy.special import expit
+from sklearn.linear_model import LogisticRegression
 from forwardcont_Reg import forwardcont_Reg
 from backwardcont_Reg import backwardcont_Reg
 from softmax import softmax
 from log_norm_pdf import log_norm_pdf
 from log_sum_exp import log_sum_exp
-from stable_exp_sum import stable_exp_sum
 
 
 def BWRcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list):
@@ -48,17 +47,23 @@ def BWRcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list):
         for i, st in enumerate(States):
             gamma_vals = f[i, :] + b[i, :] - likelihood
             loggamma_list[st].extend(gamma_vals.tolist())
-    for idx, st in enumerate(States[1:], start=1):
-        y = expit(logstart_Y[:, idx] - logstart_Y[:, 0])
-        weights = stable_exp_sum(logstart_Y[:, idx], logstart_Y[:, 0])
-        model = sm.GLM(y, Xs_all, freq_weights=weights, family=sm.families.Binomial()).fit()
-        hmm['startCoefs'][idx, :] = model.params
+    y = np.repeat(np.arange(nStates), Xs_all.shape[0])
+    w = np.exp(logstart_Y.flatten('F') - logstart_Y.flatten('F').max())
+    model = LogisticRegression(solver='lbfgs', max_iter=1000, fit_intercept=False, penalty=None).fit(np.tile(Xs_all, [nStates, 1]), y, sample_weight=w)
+    coef = model.coef_
+    if nStates > 2:
+        coef = coef - coef[0]
+        coef = coef[1:]
+    hmm['startCoefs'][1:] = coef
     for st in States:
-        for j, ns in enumerate(States[1:], start=1):
-            y = expit(np.array(logxi_list[st][ns]) - np.array(logxi_list[st][States[0]]))
-            weights = stable_exp_sum(np.array(logxi_list[st][States[0]]), np.array(logxi_list[st][ns]))
-            model = sm.GLM(y, Xt_all, freq_weights=weights, family=sm.families.Binomial()).fit()
-            hmm['transCoefs'][st][j, :] = model.params
+         y = np.repeat(np.arange(nStates), Xt_all.shape[0])
+         w = np.exp(np.concatenate(list(logxi_list[st].values())) - np.concatenate(list(logxi_list[st].values())).max())
+         model = LogisticRegression(solver='lbfgs', max_iter=1000, fit_intercept=False, penalty=None).fit(np.tile(Xt_all, [nStates, 1]), y, sample_weight=w)
+         coef = model.coef_
+         if nStates > 2:
+             coef = coef - coef[0]
+             coef = coef[1:]
+         hmm['transCoefs'][st][1:] = coef
     for st in States:
         weights = np.exp(np.array(loggamma_list[st]) - np.max(loggamma_list[st]))
         model = sm.WLS(emission_Y, Xe_all, weights=weights).fit()
