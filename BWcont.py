@@ -25,6 +25,7 @@ def BWcont(hmm, obs_list, maxIterations=100, delta=1e-9, pseudoCount=0):
         tempHmm['trans_probs'] = TM.copy()
         tempHmm['emission_params'] = EM
         tempHmm['start_probs'] = SV.copy()
+        print(d)
         if d < delta:
             break
     tempHmm['trans_probs'][~mask_trans] = np.nan

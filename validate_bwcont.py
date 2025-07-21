@@ -29,7 +29,7 @@ TRUE_HMM = initHMMcont(
 )
 
 # ─── 2. Utilities ──────────────────────────────────────────────────────
-def sample_hmm_cont(hmm, *, n_seq=300, length=100, rng):
+def sample_hmm_cont(hmm, *, n_seq=1000, length=100, rng):
     """Generate synthetic sequences of real numbers from a Gaussian-HMM."""
     n_states = len(hmm["states"])
     out = []
@@ -77,7 +77,7 @@ def min_error_permuted(t_start, t_trans, t_mu, t_sd,
 
 # ─── 3. Prepare synthetic data ─────────────────────────────────────────
 RNG = np.random.default_rng(42)
-OBS_LIST = sample_hmm_cont(TRUE_HMM, n_seq=300, length=100, rng=RNG)
+OBS_LIST = sample_hmm_cont(TRUE_HMM, n_seq=1000, length=100, rng=RNG)
 
 # ─── 4. Fit with BWcont (multiple random restarts) ─────────────────────
 RESTARTS = 7
@@ -86,7 +86,8 @@ BEST_HMM = None
 
 for r in range(RESTARTS):
     init = random_cont_hmm(2, rng=np.random.default_rng(100 + r))
-    trained = BWcont(init, OBS_LIST, maxIterations=120, delta=1e-6)["hmm"]
+    # init = TRUE_HMM
+    trained = BWcont(init, OBS_LIST, maxIterations=120, delta=1e-4)["hmm"]
 
     ll = sum(
         log_sum_exp(forwardcont(trained, seq)[:, -1])
@@ -120,11 +121,11 @@ else:
     print("FAIL – maximum error exceeds tolerance.")
 print('\nTrue vs Best Start Probs:')
 print(TRUE_HMM['start_probs'])
-print(np.round(BEST_HMM['start_probs'],2))
+print(np.round(BEST_HMM['start_probs'],4))
 print('\nTrue vs Best Transition Probs:')
 print(TRUE_HMM['trans_probs'])
-print(np.round(BEST_HMM['trans_probs'],2))
+print(np.round(BEST_HMM['trans_probs'],4))
 print('\nTrue vs Best Emission Params:')
 print(TRUE_HMM['emission_params'])
-formatted_em = [{'mean': np.round(item['mean'],2), 'sd': np.round(item['sd'],2)} for item in BEST_HMM['emission_params']]
+formatted_em = [{'mean': np.round(item['mean'],4), 'sd': np.round(item['sd'],2)} for item in BEST_HMM['emission_params']]
 print(formatted_em)

@@ -153,13 +153,13 @@ def random_hmm(seed):
     return initHMMcont_Reg(STATES, startC, transC, emisC, sds)
 
 BEST_LL, BEST_HMM = -np.inf, None
-RESTARTS = 1
+RESTARTS = 5
 
 for r in range(RESTARTS):
     init = random_hmm(100 + r)
     # init = TRUE_HMM
     trained = BWcont_Reg(init, OBS_LIST, XS_LIST, XT_LIST, XE_LIST,
-                         maxIterations=100, delta=1e-6)["hmm"]
+                         maxIterations=100, delta=1e-2)["hmm"]
     ll = sum(
         log_sum_exp(
             forwardcont_Reg(trained, o, xs, xt, xe)[:, -1]

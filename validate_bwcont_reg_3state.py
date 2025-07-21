@@ -17,9 +17,9 @@ STATES = ["S0", "S1", "S2"]
 
 F_S, F_T, F_E = 2, 3, 2          # #features for start, transition, emission
 
-TRUE_startCoefs = np.array([[ 0.0,  0.0],
+TRUE_startCoefs = np.array([[ 2.0,  0.0],
                             [-1.0,  0.5],
-                            [ 2.0,  3.0]])
+                            [ 0.0,  3.0]])
 
 TRUE_transCoefs = {
     "S0": np.array([[ 0.0,  0.0,  0.0],
@@ -86,7 +86,7 @@ def sample_sequence(hmm, length, rng):
     return obs, Xs, Xt, Xe
 
 
-def make_dataset(hmm, *, n_seq=2000, length=200, seed=0):
+def make_dataset(hmm, *, n_seq=8000, length=100, seed=0):
     rng = np.random.default_rng(seed)
     obs_list, xs_list, xt_list, xe_list = [], [], [], []
     for _ in range(n_seq):
@@ -166,7 +166,7 @@ for r in range(RESTARTS):
     init = random_hmm(100 + r)
     # init = TRUE_HMM
     trained = BWcont_Reg(init, OBS_LIST, XS_LIST, XT_LIST, XE_LIST,
-                         maxIterations=200, delta=1e-6)["hmm"]
+                         maxIterations=200, delta=1e-4)["hmm"]
     ll = sum(
         log_sum_exp(
             forwardcont_Reg(trained, o, xs, xt, xe)[:, -1]

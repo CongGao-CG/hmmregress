@@ -13,7 +13,7 @@ from log_sum_exp import log_sum_exp
 STATES  = ['S0', 'S1']
 SYMBOLS = ['A', 'B']
 
-TRUE_START = np.array([0.6, 0.4])
+TRUE_START = np.array([0.8, 0.2])
 TRUE_TRANS = np.array([[0.7, 0.3],
                        [0.2, 0.8]])
 TRUE_EMIS  = np.array([[0.5, 0.5],
@@ -27,7 +27,7 @@ TRUE_HMM = initHMM(
 )
 
 # ─── helpers ─────────────────────────────────────────────────────────────
-def sample_hmm(hmm, n_seq=400, length=200, rng=np.random.default_rng()):
+def sample_hmm(hmm, n_seq=1000, length=100, rng=np.random.default_rng()):
     '''Generate observation sequences from an HMM.'''
     n_states  = len(hmm['states'])
     n_symbols = len(hmm['symbols'])
@@ -73,15 +73,16 @@ def min_error_up_to_permutation(t_start, t_trans, t_emis,
 
 # ─── main routine ────────────────────────────────────────────────────────
 if __name__ == '__main__':
-    rng = np.random.default_rng(0)
-    OBS_LIST = sample_hmm(TRUE_HMM, n_seq=400, length=200, rng=rng)
+    rng = np.random.default_rng(1)
+    OBS_LIST = sample_hmm(TRUE_HMM, n_seq=1000, length=100, rng=rng)
     BEST_r   = np.nan
     BEST_LL  = -np.inf
     BEST_HMM = None
     RESTARTS = 5
     for r in range(RESTARTS):
         init = random_hmm(2, 2, rng=np.random.default_rng(r + 123))
-        trained = BW(init, OBS_LIST, maxIterations=100)['hmm']
+        # init = TRUE_HMM
+        trained = BW(init, OBS_LIST, maxIterations=100, delta=1e-4)['hmm']
         ll = sum(
             log_sum_exp(forward(trained, obs)[:, -1])
             for obs in OBS_LIST
@@ -106,10 +107,10 @@ if __name__ == '__main__':
         print('FAIL – maximum error exceeds tolerance.')
     print('\nTrue vs Best Start Probs:')
     print(TRUE_HMM['start_probs'])
-    print(np.round(BEST_HMM['start_probs'],2))
+    print(np.round(BEST_HMM['start_probs'],4))
     print('\nTrue vs Best Transition Probs:')
     print(TRUE_HMM['trans_probs'])
-    print(np.round(BEST_HMM['trans_probs'],2))
+    print(np.round(BEST_HMM['trans_probs'],4))
     print('\nTrue vs Best Emission Probs:')
     print(TRUE_HMM['emission_probs'])
-    print(np.round(BEST_HMM['emission_probs'],2))
+    print(np.round(BEST_HMM['emission_probs'],4))
