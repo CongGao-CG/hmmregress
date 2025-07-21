@@ -159,7 +159,7 @@ for r in range(RESTARTS):
     init = random_hmm(100 + r)
     # init = TRUE_HMM
     trained = BWcont_Reg(init, OBS_LIST, XS_LIST, XT_LIST, XE_LIST,
-                         maxIterations=100, delta=1e-2)["hmm"]
+                         maxIterations=200, delta=1e-4)["hmm"]
     ll = sum(
         log_sum_exp(
             forwardcont_Reg(trained, o, xs, xt, xe)[:, -1]
