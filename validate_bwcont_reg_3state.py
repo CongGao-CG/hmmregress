@@ -17,7 +17,7 @@ STATES = ["S0", "S1", "S2"]
 
 F_S, F_T, F_E = 2, 3, 2          # #features for start, transition, emission
 
-TRUE_startCoefs = np.array([[ 2.0,  0.0],
+TRUE_startCoefs = np.array([[ 0.0,  0.0],
                             [-1.0,  0.5],
                             [ 0.0,  3.0]])
 
@@ -86,7 +86,7 @@ def sample_sequence(hmm, length, rng):
     return obs, Xs, Xt, Xe
 
 
-def make_dataset(hmm, *, n_seq=8000, length=100, seed=0):
+def make_dataset(hmm, *, n_seq=2000, length=100, seed=0):
     rng = np.random.default_rng(seed)
     obs_list, xs_list, xt_list, xe_list = [], [], [], []
     for _ in range(n_seq):
