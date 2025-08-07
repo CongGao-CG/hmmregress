@@ -33,8 +33,14 @@ def forwardcont_Reg(hmm, observation, Xs, Xt, Xe):
         for i, st in enumerate(States):
             logsum = -np.inf
             for j, ps in enumerate(States):
-                temp = f[j, k - 1] + np.log(trans_probs_list[k - 1][j, i])
-                logsum = max(temp, logsum) + np.log1p(np.exp(-abs(temp - logsum)))
+                if trans_probs_list[k - 1][j, i] > 0:
+                    temp = f[j, k - 1] + np.log(trans_probs_list[k - 1][j, i])
+                else:
+                    temp = -np.inf
+                if np.isneginf(temp) & np.isneginf(logsum):
+                    logsum = -np.inf
+                else:
+                    logsum = max(temp, logsum) + np.log1p(np.exp(-abs(temp - logsum)))
             f[i, k] = log_norm_pdf(
                 observation[k],
                 emission_means[k, i],

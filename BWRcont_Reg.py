@@ -30,19 +30,22 @@ def BWRcont_Reg(hmm, obs_list, Xs_list, Xt_list, Xe_list):
         for i, st in enumerate(States):
             for j, ns in enumerate(States):
                 for k in range(len(obs) - 1):
-                    temp = (
-                        f[i, k]
-                        + np.log(
-                            softmax(hmm['transCoefs'][st] @ Xt[:, k])[j]
+                    if softmax(hmm['transCoefs'][st] @ Xt[:, k])[j] > 0:
+                        temp = (
+                            f[i, k]
+                            + np.log(
+                                softmax(hmm['transCoefs'][st] @ Xt[:, k])[j]
+                            )
+                            + log_norm_pdf(
+                                obs[k + 1],
+                                hmm['emissionParams'][ns]['coefs'] @ Xe[:, k + 1],
+                                hmm['emissionParams'][ns]['sd']
+                            )
+                            + b[j, k + 1]
+                            - likelihood
                         )
-                        + log_norm_pdf(
-                            obs[k + 1],
-                            hmm['emissionParams'][ns]['coefs'] @ Xe[:, k + 1],
-                            hmm['emissionParams'][ns]['sd']
-                        )
-                        + b[j, k + 1]
-                        - likelihood
-                    )
+                    else:
+                        temp = -np.inf
                     logxi_list[st][ns].append(temp)
         for i, st in enumerate(States):
             gamma_vals = f[i, :] + b[i, :] - likelihood

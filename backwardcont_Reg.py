@@ -25,15 +25,21 @@ def backwardcont_Reg(hmm, observation, Xs, Xt, Xe):
         for i, st in enumerate(States):
             logsum = -np.inf
             for j, ns in enumerate(States):
-                temp = (
-                    b[j, k + 1]
-                    + np.log(trans_probs_list[k][i, j])
-                    + log_norm_pdf(
-                        observation[k + 1],
-                        emission_means[k + 1, j],
-                        hmm['emissionParams'][ns]['sd']
+                if trans_probs_list[k][i, j] > 0:
+                    temp = (
+                        b[j, k + 1]
+                        + np.log(trans_probs_list[k][i, j])
+                        + log_norm_pdf(
+                            observation[k + 1],
+                            emission_means[k + 1, j],
+                            hmm['emissionParams'][ns]['sd']
+                        )
                     )
-                )
-                logsum = max(temp, logsum) + np.log1p(np.exp(-abs(temp - logsum)))
+                else:
+                    temp = -np.inf
+                if np.isneginf(temp) & np.isneginf(logsum):
+                    logsum = -np.inf
+                else:
+                    logsum = max(temp, logsum) + np.log1p(np.exp(-abs(temp - logsum)))
             b[i, k] = logsum
     return b
