@@ -24,11 +24,14 @@ def forwardcont_Reg(hmm, observation, Xs, Xt, Xe):
         trans_probs_list.append(TM)
     f = np.zeros((nStates, nObs))
     for i, st in enumerate(States):
-        f[i, 0] = np.log(start_probs[i]) + log_norm_pdf(
-            observation[0],
-            emission_means[0, i],
-            hmm['emissionParams'][st]['sd']
-        )
+        if start_probs[i] > 0:
+            f[i, 0] = np.log(start_probs[i]) + log_norm_pdf(
+                observation[0],
+                emission_means[0, i],
+                hmm['emissionParams'][st]['sd']
+            )
+        else:
+            f[i, 0] = -np.inf
     for k in range(1, nObs):
         for i, st in enumerate(States):
             logsum = -np.inf
